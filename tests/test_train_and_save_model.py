@@ -4,10 +4,12 @@ import pytest
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from unittest.mock import patch, MagicMock
-from train_and_save_model import download_data, preprocess_data
-from train_and_save_model import train_model, ensure_folder_exists, save_model_to_gcs
+from train_and_save_model import download_data, preprocess_data, train_model
+from train_and_save_model import get_model_version, update_model_version
+from train_and_save_model import ensure_folder_exists, save_model_to_gcs
 
 
+# ----------------- Test Download ----------------- #
 # Test download_data function
 def test_download_data():
   X, y = download_data()
@@ -18,7 +20,9 @@ def test_download_data():
   assert not X.empty
   assert not y.empty
   assert X.shape[0] == y.shape[0]
-  
+
+
+# ----------------- Test Preprocess ----------------- #
 # Test preprocess_data function
 def test_preprocess_data():
   X, y = download_data()
@@ -27,7 +31,9 @@ def test_preprocess_data():
   assert X_train.shape[0] + X_test.shape[0] == X.shape[0]
   assert y_train.shape[0] + y_test.shape[0] == y.shape[0]
   assert X_train.shape[1] == X.shape[1]
-  
+
+
+# ----------------- Test Train model ----------------- #
 # Test train_model function
 def test_train_model():
   # Generate sample data
@@ -45,7 +51,89 @@ def test_train_model():
   # Assertions
   assert isinstance(model, RandomForestClassifier)
   assert hasattr(model, 'predict')
+
+
+# ----------------- Test Model versioning ----------------- #
+# Test get model version function
+def test_get_model_version():
+  with patch('train_and_save_model.storage.Client') as mock_storage_client:
+    mock_bucket = MagicMock()
+    mock_blob = MagicMock()
+    
+    mock_storage_client.return_value.bucket.return_value = mock_bucket
+    mock_bucket.blob.return_value = mock_blob
+    
+    # Test inputs for actual function
+    bucket_name = "bucket-test"
+    version_file_name = "version.txt"
+
+    # When version file exists
+    mock_blob.exists.return_value = True
+    version = get_model_version(bucket_name, version_file_name)
+    mock_blob.download_as_text.return_value = '1'
+    # Assertions
+    assert version == 1
+    mock_storage_client.return_value.bucket.assert_called_once_with(bucket_name)
+    mock_bucket.blob.assert_called_once_with(version_file_name)
+    mock_blob.download_as_text.assert_called_once()
+    
+    # Reset the mock blob for the next test
+    mock_storage_client.reset_mock()
+    mock_bucket.reset_mock()
+    mock_blob.reset_mock()
+    
+    # When version file does not exist
+    mock_blob.exists.return_value = False
+    version = get_model_version(bucket_name, version_file_name)
+    mock_blob.download_as_text.return_value = '0'
+    # Assertions
+    assert version == 0
+    mock_storage_client.return_value.bucket.assert_called_once_with(bucket_name)
+    mock_bucket.blob.assert_called_once_with(version_file_name)
+    mock_blob.download_as_text.assert_not_called()
+    
+
+# ----------------- Test Update Model version ----------------- #
+# Test update_model_version function
+def test_update_model_version():
+  with patch('train_and_save_model.storage.Client') as mock_storage_client:
+    mock_bucket = MagicMock()
+    mock_blob = MagicMock()
+    
+    mock_storage_client.return_value.bucket.return_value = mock_bucket
+    mock_bucket.blob.return_value = mock_blob
+    
+    bucket_name = 'bucket-test'
+    version_file_name = 'version.txt'
+    new_version = 2
+    
+    # Test successful update
+    result = update_model_version(bucket_name, version_file_name, new_version)
+    assert result == True
+    mock_storage_client.return_value.bucket.assert_called_once_with(bucket_name)
+    mock_bucket.blob.assert_called_once_with(version_file_name)
+    mock_blob.upload_from_string.assert_called_once_with(str(new_version))
+    
+    # Reset mocks
+    mock_storage_client.reset_mock()
+    mock_bucket.reset_mock()
+    mock_blob.reset_mock()
+    
+    # Test invalid version
+    with pytest.raises(ValueError):
+      update_model_version(bucket_name, version_file_name, 'invalid_version')
+      
+    # Test exception handling
+    mock_blob.upload_from_string.side_effect = Exception("Upload failed")
+    result = update_model_version(bucket_name, version_file_name, new_version)
+    assert result == False
+    mock_storage_client.return_value.bucket.assert_called_once_with(bucket_name)
+    mock_bucket.blob.assert_called_once_with(version_file_name)
+    mock_blob.upload_from_string.assert_called_once_with(str(new_version))
   
+  
+
+# ----------------- Test Ensure Folder Exists ----------------- #
 # Test function for ensure_folder_exists
 def test_ensure_folder_exists():
   with patch('train_and_save_model.storage.Client') as mock_storage_client:
@@ -73,6 +161,8 @@ def test_ensure_folder_exists():
     mock_blob.upload_from_string.assert_not_called()
 
 
+
+# ----------------- Test Test and Save model to GCS ----------------- #
 # Test save_model_to_gcs function
 # For testing this function, since we are making calls to an external service (GCS)
 # we need to mock GCS objects and client to prevent actual calls.

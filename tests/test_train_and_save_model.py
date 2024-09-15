@@ -123,7 +123,7 @@ def test_update_model_version():
     with pytest.raises(ValueError):
       update_model_version(bucket_name, version_file_name, 'invalid_version')
       
-    # Test exception handling
+    # Test exception handling scenario
     mock_blob.upload_from_string.side_effect = Exception("Upload failed")
     result = update_model_version(bucket_name, version_file_name, new_version)
     assert result == False

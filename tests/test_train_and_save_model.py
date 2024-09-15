@@ -4,7 +4,8 @@ import pytest
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from unittest.mock import patch, MagicMock
-from train_and_save_model import download_data, preprocess_data, train_model, save_model_to_gcs
+from train_and_save_model import download_data, preprocess_data
+from train_and_save_model import train_model, ensure_folder_exists, save_model_to_gcs
 
 
 # Test download_data function
@@ -45,8 +46,36 @@ def test_train_model():
   assert isinstance(model, RandomForestClassifier)
   assert hasattr(model, 'predict')
   
+# Test function for ensure_folder_exists
+def test_ensure_folder_exists():
+  with patch('train_and_save_model.storage.Client') as mock_storage_client:
+    mock_bucket = MagicMock()
+    mock_blob = MagicMock()
+    
+    mock_storage_client.return_value.bucket.return_value = mock_bucket
+    mock_bucket.blob.return_value = mock_blob
+    
+    folder_name = "trained_models"
+    
+    # When folder does not exist
+    mock_blob.exists.return_value = False
+    ensure_folder_exists(mock_bucket, folder_name)
+    mock_bucket.blob.assert_called_with(f"{folder_name}/")
+    mock_blob.upload_from_string.assert_called_once_with('')
+    
+    # Reset the mock for the next test
+    mock_blob.reset_mock()
+    
+    # When folder exists
+    mock_blob.exists.return_value = True
+    ensure_folder_exists(mock_bucket, folder_name)
+    mock_bucket.blob.assert_called_with(f"{folder_name}/")
+    mock_blob.upload_from_string.assert_not_called()
+
+
 # Test save_model_to_gcs function
-# For testing this function, since we are making calls to an external service (GCS), we need to mock GCS objects and client to prevent actual calls.
+# For testing this function, since we are making calls to an external service (GCS)
+# we need to mock GCS objects and client to prevent actual calls.
 def test_save_model_to_gcs():
   # Create a mock model
   model = RandomForestClassifier()

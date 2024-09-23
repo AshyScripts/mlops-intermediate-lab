@@ -67,7 +67,7 @@ jobs:
 
       - name: Build and Push Docker image
         env:
-          IMAGE_NAME: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/model-image
+          IMAGE_NAME: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY_NAME }}
         run: |
           docker build -t ${IMAGE_NAME}:${{ env.MODEL_VERSION }} .
           docker push ${IMAGE_NAME}:${{ env.MODEL_VERSION }}

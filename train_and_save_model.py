@@ -131,6 +131,7 @@ def main():
   # Update version number on GCS if save was successful
   if update_model_version(BUCKET_NAME, VERSION_FILE_NAME, new_version):
     print(f"Model version updated to {new_version}")
+    print(f"MODEL_VERSION_OUTPUT: {new_version}")
   else:
     print("Failed to update model version")
   

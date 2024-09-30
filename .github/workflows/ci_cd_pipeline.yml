@@ -5,8 +5,8 @@ on:
     branches: [ main, intermediate-lab ]
   pull_request: 
     branches: [ main ]
-  schedule:
-    - cron: '0 0 * * *' # Runs every day at midnight
+  # schedule:
+  #   - cron: '0 0 * * *' # Runs every day at midnight
   workflow_dispatch: 
 
 env:
